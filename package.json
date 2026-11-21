@@ -1,0 +1,35 @@
+{
+  "name": "theseus-verify",
+  "version": "0.1.0",
+  "description": "Rewrite a legacy web app and prove behavioral equivalence with Kane CLI.",
+  "type": "module",
+  "bin": {
+    "theseus": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "commander": "^13.1.0",
+    "picocolors": "^1.1.1",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^22.13.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.7"
+  }
+}

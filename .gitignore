@@ -1,0 +1,10 @@
+node_modules/
+.pnpm-store/
+dist/
+.theseus/
+.unlazy/
+.unlazy-hook-state.json
+.agents/
+.claude/
+*.log
+.DS_Store

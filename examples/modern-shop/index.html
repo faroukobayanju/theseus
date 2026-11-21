@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ModernMart</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f19;
+      --surface: #131a2a;
+      --border: #24304a;
+      --text: #e6edf7;
+      --muted: #93a4c3;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --danger: #f87171;
+      --success: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 32px 16px;
+    }
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: -0.02em;
+    }
+    header span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .price {
+      font-size: 20px;
+      font-weight: 700;
+      color: #a5b4fc;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .panel h2 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+    }
+    button {
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover {
+      background: var(--accent-hover);
+    }
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    button.secondary:hover {
+      border-color: var(--muted);
+      color: var(--text);
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    input[type="text"] {
+      background: #0d1322;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 14px;
+      min-width: 200px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      color: var(--muted);
+    }
+    .summary-row.total {
+      border-top: 1px solid var(--border);
+      margin-top: 8px;
+      padding-top: 12px;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .error {
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+    .status {
+      color: var(--success);
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ModernMart</h1>
+      <span>Next-Gen Storefront</span>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <h3>Widget Pro</h3>
+        <div class="price">$100.00</div>
+        <button type="button" data-add="widget-pro">Add Widget Pro</button>
+      </div>
+      <div class="card">
+        <h3>Cable Pack</h3>
+        <div class="price">$5.00</div>
+        <button type="button" data-add="cable-pack">Add Cable Pack</button>
+      </div>
+      <div class="card">
+        <h3>Sticker</h3>
+        <div class="price">$3.00</div>
+        <button type="button" data-add="sticker">Add Sticker</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content: space-between;">
+        <h2>Cart</h2>
+        <button type="button" id="clear-cart" class="secondary">Clear Cart</button>
+      </div>
+      <div id="cart-items" class="muted">Your cart is empty.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Promo Code</h2>
+      <div class="row">
+        <input type="text" id="promo-input" placeholder="Enter promo code (e.g. SAVE10)" aria-label="Promo code" />
+        <button type="button" id="apply-promo">Apply</button>
+        <span id="active-promo" class="muted"></span>
+      </div>
+      <div id="promo-error" class="error" role="alert"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Order Summary</h2>
+      <div class="summary-row">
+        <span>Subtotal</span>
+        <span id="subtotal">$0.00</span>
+      </div>
+      <div class="summary-row">
+        <span>Discount</span>
+        <span id="discount">-$0.00</span>
+      </div>
+      <div class="summary-row">
+        <span>Tax (8.25%)</span>
+        <span id="tax">$0.00</span>
+      </div>
+      <div class="summary-row total">
+        <span>Final Total</span>
+        <span id="final-total">$0.00</span>
+      </div>
+      <div style="margin-top: 16px;">
+        <button type="button" id="checkout-btn">Checkout</button>
+      </div>
+      <div id="checkout-error" class="error" role="alert"></div>
+      <div id="checkout-status" class="status"></div>
+    </section>
+  </div>
+
+  <script type="module">
+    import {
+      calculateTotals,
+      applyPromo,
+      validateCheckout,
+      formatCurrency,
+    } from "/pricing.mjs";
+
+    const PRODUCTS = {
+      "widget-pro": { name: "Widget Pro", price: 100.0 },
+      "cable-pack": { name: "Cable Pack", price: 5.0 },
+      "sticker": { name: "Sticker", price: 3.0 },
+    };
+
+    let cart = [];
+    let activePromo = "";
+
+    const cartItemsEl = document.getElementById("cart-items");
+    const subtotalEl = document.getElementById("subtotal");
+    const discountEl = document.getElementById("discount");
+    const taxEl = document.getElementById("tax");
+    const finalTotalEl = document.getElementById("final-total");
+    const activePromoEl = document.getElementById("active-promo");
+    const promoInputEl = document.getElementById("promo-input");
+    const promoErrorEl = document.getElementById("promo-error");
+    const checkoutErrorEl = document.getElementById("checkout-error");
+    const checkoutStatusEl = document.getElementById("checkout-status");
+
+    function getSubtotal() {
+      return cart.reduce((sum, item) => sum + item.price, 0);
+    }
+
+    function render() {
+      if (cart.length === 0) {
+        cartItemsEl.textContent = "Your cart is empty.";
+      } else {
+        const counts = {};
+        for (const item of cart) {
+          counts[item.name] = (counts[item.name] || 0) + 1;
+        }
+        cartItemsEl.textContent = Object.entries(counts)
+          .map(([name, qty]) => `${qty}x ${name}`)
+          .join(", ");
+      }
+
+      const totals = calculateTotals(getSubtotal(), activePromo);
+      subtotalEl.textContent = formatCurrency(totals.subtotal);
+      discountEl.textContent = `-${formatCurrency(totals.discount)}`;
+      taxEl.textContent = formatCurrency(totals.tax);
+      finalTotalEl.textContent = totals.formattedTotal;
+      activePromoEl.textContent = activePromo ? `Active: ${activePromo}` : "";
+    }
+
+    for (const btn of document.querySelectorAll("button[data-add]")) {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-add");
+        if (PRODUCTS[id]) {
+          cart.push(PRODUCTS[id]);
+          checkoutErrorEl.textContent = "";
+          checkoutStatusEl.textContent = "";
+          render();
+        }
+      });
+    }
+
+    document.getElementById("clear-cart").addEventListener("click", () => {
+      cart = [];
+      activePromo = "";
+      promoInputEl.value = "";
+      promoErrorEl.textContent = "";
+      checkoutErrorEl.textContent = "";
+      checkoutStatusEl.textContent = "";
+      render();
+    });
+
+    document.getElementById("apply-promo").addEventListener("click", () => {
+      const result = applyPromo(activePromo, promoInputEl.value);
+      activePromo = result.promo;
+      promoErrorEl.textContent = result.error;
+      render();
+    });
+
+    document.getElementById("checkout-btn").addEventListener("click", () => {
+      const check = validateCheckout(getSubtotal());
+      if (!check.ok) {
+        checkoutStatusEl.textContent = "";
+        checkoutErrorEl.textContent = check.error;
+        return;
+      }
+      checkoutErrorEl.textContent = "";
+      checkoutStatusEl.textContent = "Order placed successfully!";
+    });
+
+    render();
+  </script>
+</body>
+</html>

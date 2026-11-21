@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LegacyMart 2012</title>
+  <style>
+    body {
+      font-family: Verdana, Arial, sans-serif;
+      font-size: 13px;
+      background-color: #d4d0c8;
+      color: #111111;
+      margin: 0;
+      padding: 16px;
+    }
+    .page {
+      max-width: 780px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 2px outset #cccccc;
+      padding: 16px;
+    }
+    .banner {
+      background: #003366;
+      color: #ffffff;
+      padding: 10px 14px;
+      margin: -16px -16px 16px -16px;
+      border-bottom: 3px solid #ffcc00;
+    }
+    .banner h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .banner p {
+      margin: 4px 0 0 0;
+      font-size: 11px;
+      color: #ddeeff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+    }
+    th, td {
+      border: 1px solid #999999;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #eeeeee;
+    }
+    button {
+      font-family: Verdana, Arial, sans-serif;
+      font-size: 12px;
+      padding: 4px 10px;
+      background: #e0e0e0;
+      border: 2px outset #ffffff;
+      cursor: pointer;
+    }
+    button:active {
+      border-style: inset;
+    }
+    .box {
+      background: #f7f7f7;
+      border: 1px solid #999999;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .error {
+      color: #cc0000;
+      font-weight: bold;
+      margin-top: 6px;
+      min-height: 16px;
+    }
+    .status {
+      color: #006600;
+      font-weight: bold;
+      margin-top: 6px;
+    }
+    .totals td:last-child {
+      text-align: right;
+      font-weight: bold;
+    }
+    #final-total {
+      font-size: 15px;
+      color: #003366;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="banner">
+      <h1>LegacyMart 2012</h1>
+      <p>Trusted Online Catalog Since 2012 &mdash; Best viewed at 1024x768</p>
+    </div>
+
+    <h2>Product Catalog</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Unit Price</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Widget Pro</td>
+          <td>$100.00</td>
+          <td><button type="button" data-add="widget-pro">Add Widget Pro</button></td>
+        </tr>
+        <tr>
+          <td>Cable Pack</td>
+          <td>$5.00</td>
+          <td><button type="button" data-add="cable-pack">Add Cable Pack</button></td>
+        </tr>
+        <tr>
+          <td>Sticker</td>
+          <td>$3.00</td>
+          <td><button type="button" data-add="sticker">Add Sticker</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="box">
+      <h2>Shopping Cart</h2>
+      <div id="cart-items">Your cart is empty.</div>
+      <div style="margin-top: 8px;">
+        <button type="button" id="clear-cart">Clear Cart</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <label for="promo-input"><strong>Promo Code:</strong></label>
+      <input type="text" id="promo-input" placeholder="e.g. SAVE10" />
+      <button type="button" id="apply-promo">Apply</button>
+      <span id="active-promo" style="margin-left: 8px;"></span>
+      <div id="promo-error" class="error" role="alert"></div>
+    </div>
+
+    <div class="box">
+      <h2>Order Summary</h2>
+      <table class="totals">
+        <tbody>
+          <tr>
+            <td>Subtotal</td>
+            <td id="subtotal">$0.00</td>
+          </tr>
+          <tr>
+            <td>Discount</td>
+            <td id="discount">-$0.00</td>
+          </tr>
+          <tr>
+            <td>Tax (8.25%)</td>
+            <td id="tax">$0.00</td>
+          </tr>
+          <tr>
+            <td><strong>Final Total</strong></td>
+            <td id="final-total">$0.00</td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" id="checkout-btn">Checkout</button>
+      <div id="checkout-error" class="error" role="alert"></div>
+      <div id="checkout-status" class="status"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var PRODUCTS = {
+        "widget-pro": { name: "Widget Pro", price: 100.0 },
+        "cable-pack": { name: "Cable Pack", price: 5.0 },
+        "sticker": { name: "Sticker", price: 3.0 }
+      };
+
+      var TAX_RATE = 0.0825;
+      var PROMO_RATES = { SAVE10: 0.10, SAVE20: 0.20 };
+      var MIN_ORDER = 10.0;
+
+      var cart = [];
+      var activePromo = "";
+
+      function round2(n) {
+        return Math.round((n + Number.EPSILON) * 100) / 100;
+      }
+
+      function fmt(n) {
+        return "$" + n.toFixed(2);
+      }
+
+      function getSubtotal() {
+        var sum = 0;
+        for (var i = 0; i < cart.length; i++) {
+          sum += cart[i].price;
+        }
+        return round2(sum);
+      }
+
+      function render() {
+        var cartEl = document.getElementById("cart-items");
+        if (cart.length === 0) {
+          cartEl.textContent = "Your cart is empty.";
+        } else {
+          var counts = {};
+          for (var i = 0; i < cart.length; i++) {
+            var name = cart[i].name;
+            counts[name] = (counts[name] || 0) + 1;
+          }
+          var parts = [];
+          for (var key in counts) {
+            parts.push(counts[key] + "x " + key);
+          }
+          cartEl.textContent = parts.join(", ");
+        }
+
+        var subtotal = getSubtotal();
+        var rate = PROMO_RATES[activePromo] || 0;
+        // Rule 1: Apply discount BEFORE 8.25% tax, rounded to 2 decimals.
+        var discount = round2(subtotal * rate);
+        var discountedSubtotal = round2(subtotal - discount);
+        var tax = round2(discountedSubtotal * TAX_RATE);
+        var total = round2(discountedSubtotal + tax);
+
+        document.getElementById("subtotal").textContent = fmt(subtotal);
+        document.getElementById("discount").textContent = "-" + fmt(discount);
+        document.getElementById("tax").textContent = fmt(tax);
+        document.getElementById("final-total").textContent = fmt(total);
+        document.getElementById("active-promo").textContent = activePromo
+          ? "Active: " + activePromo
+          : "";
+      }
+
+      var addButtons = document.querySelectorAll("button[data-add]");
+      for (var i = 0; i < addButtons.length; i++) {
+        addButtons[i].addEventListener("click", function (e) {
+          var id = e.currentTarget.getAttribute("data-add");
+          if (PRODUCTS[id]) {
+            cart.push(PRODUCTS[id]);
+            document.getElementById("checkout-error").textContent = "";
+            document.getElementById("checkout-status").textContent = "";
+            render();
+          }
+        });
+      }
+
+      document.getElementById("clear-cart").addEventListener("click", function () {
+        cart = [];
+        activePromo = "";
+        document.getElementById("promo-input").value = "";
+        document.getElementById("promo-error").textContent = "";
+        document.getElementById("checkout-error").textContent = "";
+        document.getElementById("checkout-status").textContent = "";
+        render();
+      });
+
+      document.getElementById("apply-promo").addEventListener("click", function () {
+        var input = document.getElementById("promo-input");
+        var code = input.value.trim().toUpperCase();
+        var errEl = document.getElementById("promo-error");
+
+        if (!code) {
+          errEl.textContent = "Please enter a promo code";
+          return;
+        }
+
+        // Rule 2: No promo stacking.
+        if (activePromo && code !== activePromo) {
+          errEl.textContent = "Promo codes cannot be combined";
+          return;
+        }
+
+        if (!PROMO_RATES[code]) {
+          errEl.textContent = "Invalid promo code";
+          return;
+        }
+
+        activePromo = code;
+        errEl.textContent = "";
+        render();
+      });
+
+      document.getElementById("checkout-btn").addEventListener("click", function () {
+        var subtotal = getSubtotal();
+        var errEl = document.getElementById("checkout-error");
+        var statusEl = document.getElementById("checkout-status");
+
+        // Rule 3: Minimum order $10.00.
+        if (subtotal < MIN_ORDER) {
+          statusEl.textContent = "";
+          errEl.textContent = "Minimum order is $10.00";
+          return;
+        }
+
+        errEl.textContent = "";
+        statusEl.textContent = "Order placed successfully!";
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

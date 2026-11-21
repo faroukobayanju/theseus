@@ -1,0 +1,27 @@
+legacyUrl: http://127.0.0.1:4101
+modernUrl: http://127.0.0.1:4102
+repoPath: examples/modern-shop
+maxIters: 5
+flows:
+  - id: discount-tax-rounding
+    name: Discount before tax rounding
+    objective: >-
+      Open {{url}}, add 1 Widget Pro to the cart, enter promo code SAVE10,
+      click Apply, read the Final Total text, and store it as 'final_total'.
+    storeKeys:
+      - final_total
+  - id: promo-stacking-guard
+    name: Promo code stacking guard
+    objective: >-
+      Open {{url}}, add 1 Widget Pro to the cart, enter promo code SAVE10 and
+      click Apply, then enter promo code SAVE20 and click Apply, read the promo
+      error message text, and store it as 'promo_error'.
+    storeKeys:
+      - promo_error
+  - id: minimum-order-guard
+    name: Minimum order checkout guard
+    objective: >-
+      Open {{url}}, add 1 Sticker to the cart, click Checkout, read the checkout
+      error message text, and store it as 'checkout_error'.
+    storeKeys:
+      - checkout_error
