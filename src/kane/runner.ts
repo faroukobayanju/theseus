@@ -36,11 +36,18 @@ function tryParseEvent(line: string): Record<string, unknown> | null {
 }
 
 function absorbStoredValues(obj: Record<string, unknown>, target: Record<string, string>): void {
-  for (const field of ["storedValues", "stored_values", "variables", "extracted"]) {
+  for (const field of ["storedValues", "stored_values", "variables", "extracted", "final_state", "memory"]) {
     const map = obj[field];
     if (!isRecord(map)) continue;
     for (const [k, v] of Object.entries(map)) {
-      if (v !== undefined && v !== null) {
+      if (field === "final_state" && k === "url") continue;
+      if (v === undefined || v === null) continue;
+      if (isRecord(v)) {
+        const inner = v.value ?? v.extracted_value;
+        if (inner !== undefined && inner !== null) {
+          target[k] = String(inner);
+        }
+      } else {
         target[k] = String(v);
       }
     }
@@ -59,6 +66,7 @@ function applyEvent(ev: Record<string, unknown>, acc: ParsedNdjson): void {
   const scopes: Record<string, unknown>[] = [ev];
   if (isRecord(ev.data)) scopes.push(ev.data);
   if (isRecord(ev.result)) scopes.push(ev.result);
+  if (isRecord(ev.context)) scopes.push(ev.context);
 
   for (const scope of scopes) {
     absorbStoredValues(scope, acc.storedValues);
@@ -67,7 +75,10 @@ function applyEvent(ev: Record<string, unknown>, acc: ParsedNdjson): void {
       acc.summary = scope.summary;
     }
 
-    const evPath = scope.evidencePath ?? scope.evidence_path;
+    const evPath =
+      scope.evidencePath ??
+      scope.evidence_path ??
+      (typeof scope.pack === "string" && scope.pack.endsWith(".evidence") ? scope.pack : undefined);
     if (typeof evPath === "string" && evPath.length > 0) {
       acc.evidencePath = evPath;
     }

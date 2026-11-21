@@ -68,13 +68,16 @@ export async function extractEvidence(evidenceZipPath: string | null): Promise<E
 
   const entries = zip.getEntries().filter((e) => !e.isDirectory);
 
-  const pngs = entries
-    .filter((e) => e.entryName.toLowerCase().endsWith(".png"))
-    .sort((a, b) => a.entryName.localeCompare(b.entryName));
-  const preferredPngs = pngs.filter((e) => /(^|\/)screenshots\//i.test(e.entryName));
-  const chosenPng = (preferredPngs.length > 0 ? preferredPngs : pngs).at(-1);
-  const screenshotDataUri = chosenPng
-    ? `data:image/png;base64,${chosenPng.getData().toString("base64")}`
+  const images = entries
+    .filter((e) => /\.(png|jpe?g)$/i.test(e.entryName))
+    .sort((a, b) => a.entryName.localeCompare(b.entryName, undefined, { numeric: true }));
+  const preferredImages = images.filter(
+    (e) => /(^|\/)screenshots\//i.test(e.entryName) || /annotated\.png$/i.test(e.entryName),
+  );
+  const chosenImage = (preferredImages.length > 0 ? preferredImages : images).at(-1);
+  const mime = chosenImage && /\.jpe?g$/i.test(chosenImage.entryName) ? "image/jpeg" : "image/png";
+  const screenshotDataUri = chosenImage
+    ? `data:${mime};base64,${chosenImage.getData().toString("base64")}`
     : null;
 
   const consoleErrors: string[] = [];
@@ -82,19 +85,39 @@ export async function extractEvidence(evidenceZipPath: string | null): Promise<E
 
   for (const entry of entries) {
     const name = entry.entryName.toLowerCase();
-    if (!name.endsWith(".json")) continue;
+    const isJson = name.endsWith(".json") || name.endsWith(".har");
+    const isNdjson = name.endsWith(".ndjson");
+    if (!isJson && !isNdjson) continue;
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(entry.getData().toString("utf8"));
-    } catch {
-      continue;
+    const raw = entry.getData().toString("utf8");
+    const parsedItems: unknown[] = [];
+
+    if (isNdjson) {
+      for (const line of raw.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("{")) continue;
+        try {
+          parsedItems.push(JSON.parse(trimmed));
+        } catch {
+          // ignore malformed line
+        }
+      }
+    } else {
+      try {
+        parsedItems.push(JSON.parse(raw));
+      } catch {
+        continue;
+      }
     }
 
     if (name.includes("console")) {
-      consoleErrors.push(...extractConsoleErrors(parsed));
+      if (isNdjson) {
+        consoleErrors.push(...extractConsoleErrors(parsedItems));
+      } else {
+        for (const item of parsedItems) consoleErrors.push(...extractConsoleErrors(item));
+      }
     } else if (name.includes("network")) {
-      networkErrors.push(...extractNetworkErrors(parsed));
+      for (const item of parsedItems) networkErrors.push(...extractNetworkErrors(item));
     }
   }
 
