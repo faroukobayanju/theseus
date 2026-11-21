@@ -149,7 +149,11 @@ export async function runConvergeLoop(
     const beforeSnap = await gitSnapshotFn(config.repoPath);
 
     progress(`Iteration ${iter}/${maxIters}: invoking coding agent`);
-    await agentExecutor(agentPrompt, config.repoPath, opts.agentCmd ?? config.agentCmd);
+    const agentRes = await agentExecutor(agentPrompt, config.repoPath, opts.agentCmd ?? config.agentCmd);
+    if (agentRes.exitCode !== 0) {
+      const detail = (agentRes.stderr || agentRes.stdout).trim().split(/\r?\n/)[0] ?? "";
+      progress(`Agent exited with code ${agentRes.exitCode}${detail ? `: ${detail}` : ""}`);
+    }
 
     const afterSnap = await gitSnapshotFn(config.repoPath);
     const noChanges =
