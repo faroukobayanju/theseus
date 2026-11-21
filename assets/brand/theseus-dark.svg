@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>Theseus — Dark Kit</title>
+  <rect width="256" height="256" rx="48" fill="#0B0F19"/>
+  <path d="M40 70H118V96H52L40 70Z" fill="#F59E0B"/>
+  <path d="M58 110H118V136H73L58 110Z" fill="#F59E0B"/>
+  <path d="M78 150H118V176H93L78 150Z" fill="#F59E0B"/>
+  <path d="M138 70H216L164 176H138V70Z" fill="#22D3EE"/>
+  <path d="M100 190H156L128 222L100 190Z" fill="#10B981"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>Theseus Concept A — Split Keel</title>
+  <!-- Left half: 3 legacy hull planks -->
+  <path d="M36 68H116V96H48L36 68Z" fill="#0F172A"/>
+  <path d="M54 110H116V138H68L54 110Z" fill="#0F172A"/>
+  <path d="M74 152H116V180H90L74 152Z" fill="#0F172A"/>
+  <!-- Right half: unified modern hull blade -->
+  <path d="M140 68H220L166 180H140V68Z" fill="#0F172A"/>
+  <!-- Keel keystone unifying both halves -->
+  <path d="M100 194H156L128 228L100 194Z" fill="#0F172A"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>Theseus Concept C — Plumb Seal</title>
+  <!-- Octagonal seal frame with negative-space diamond cutout -->
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M86 32H170L224 86V170L170 224H86L32 170V86L86 32ZM128 64L64 128L128 192L192 128L128 64Z" fill="#0F172A"/>
+  <!-- Center plumb line + equivalence diamond -->
+  <path d="M118 82H138V174H118V82Z" fill="#0F172A"/>
+</svg>

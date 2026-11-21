@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>Theseus Concept B — Parity Gate</title>
+  <!-- Top crossbar of geometric T / deck beam -->
+  <path d="M36 52H220V84H36V52Z" fill="#0F172A"/>
+  <!-- Twin vertical parity pillars forming equivalence channel -->
+  <path d="M84 98H116V208H84V98Z" fill="#0F172A"/>
+  <path d="M140 98H172V208H140V98Z" fill="#0F172A"/>
+  <!-- Outer hull chevrons -->
+  <path d="M36 104L68 136L36 168V104Z" fill="#0F172A"/>
+  <path d="M220 104L188 136L220 168V104Z" fill="#0F172A"/>
+</svg>
