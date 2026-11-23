@@ -208,6 +208,29 @@ describe("diffFlowResult", () => {
     ]);
   });
 
+  it("ignores legacy final-validation status=failed when legacy captured all declared storeKeys and modern passed", () => {
+    const flow: FlowSpec = {
+      id: "discount-tax-rounding",
+      name: "Discount before tax rounding",
+      objective: "Store final_total",
+      storeKeys: ["final_total"],
+    };
+    const legacy = makeRun({
+      flowId: "discount-tax-rounding",
+      status: "failed",
+      storedValues: { final_total: "$97.43" },
+    });
+    const modern = makeRun({
+      flowId: "discount-tax-rounding",
+      status: "passed",
+      storedValues: { final_total: "$97.43" },
+    });
+
+    const diff = diffFlowResult(flow, legacy, modern);
+    expect(diff.equivalent).toBe(true);
+    expect(diff.drifts).toEqual([]);
+  });
+
   it("surfaces new Kane CLI --bug-detection findings as kane_bug_detected drifts", () => {
     const legacy = makeRun();
     const modern = makeRun({

@@ -141,8 +141,8 @@ export const getGitSnapshot: GitSnapshotFn = async (repoPath) => {
   const commitSha = shaOut ? shaOut.trim() : "unknown";
 
   const diffOut =
-    (await runGit(["diff", "HEAD"], repoPath)) ??
-    (await runGit(["diff"], repoPath)) ??
+    (await runGit(["diff", "HEAD", "--", "."], repoPath)) ??
+    (await runGit(["diff", "--", "."], repoPath)) ??
     "";
 
   const statusOut = await runGit(["status", "--porcelain", "-uall", "--", "."], repoPath);

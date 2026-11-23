@@ -97,7 +97,21 @@ export function diffFlowResult(
 ): FlowDiff {
   const drifts: DriftItem[] = [];
 
-  if (legacy.status !== modern.status) {
+  const declaredKeys = flow.storeKeys ?? [];
+  const legacyCanon = canonicalizeStoredValues(legacy.storedValues, declaredKeys);
+  const modernCanon = canonicalizeStoredValues(modern.storedValues, declaredKeys);
+
+  // If Kane's LLM --final-validation flagged the legacy summary as failed even
+  // though legacy extracted every declared storeKey and modern passed cleanly,
+  // do not fabricate an impossible `expected failed | actual passed` status drift.
+  const legacyCapturedAllDeclared =
+    declaredKeys.length > 0 && declaredKeys.every((k) => legacyCanon[k] !== undefined);
+  const benignLegacyFinalValidationMismatch =
+    legacy.status === "failed" &&
+    modern.status === "passed" &&
+    legacyCapturedAllDeclared;
+
+  if (legacy.status !== modern.status && !benignLegacyFinalValidationMismatch) {
     drifts.push({
       flowId: flow.id,
       kind: "status",
@@ -105,10 +119,6 @@ export function diffFlowResult(
       actual: modern.status,
     });
   }
-
-  const declaredKeys = flow.storeKeys ?? [];
-  const legacyCanon = canonicalizeStoredValues(legacy.storedValues, declaredKeys);
-  const modernCanon = canonicalizeStoredValues(modern.storedValues, declaredKeys);
 
   // 1. Always compare every explicitly declared storeKey strictly (missing in modern = real drift).
   const comparedKeys = new Set<string>();
