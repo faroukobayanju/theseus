@@ -1,11 +1,12 @@
 import { execFile, spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import type { FlowDiff } from "../types.js";
 import { spawnResolved } from "../utils/spawn.js";
 
 const execFileAsync = promisify(execFile);
+const MAX_UNTRACKED_SNIPPET_BYTES = 64 * 1024;
 
 export type AgentExecutor = (
   prompt: string,
@@ -69,20 +70,22 @@ export const invokeAgent: AgentExecutor = (prompt, repoPath, agentCmd) => {
 
     if (agentCmd) {
       if (agentCmd.includes("{{prompt}}")) {
-        const envRef = isWin ? '"%THESEUS_PROMPT%"' : '"$THESEUS_PROMPT"';
-        const cmd = agentCmd.replaceAll("{{prompt}}", envRef);
-        child = isWin
-          ? spawn(cmd, [], {
-              cwd: repoPath,
-              shell: true,
-              env: { ...process.env, THESEUS_PROMPT: prompt },
-              stdio: ["ignore", "pipe", "pipe"],
-            })
-          : spawn("sh", ["-c", cmd], {
-              cwd: repoPath,
-              env: { ...process.env, THESEUS_PROMPT: prompt },
-              stdio: ["ignore", "pipe", "pipe"],
-            });
+        if (isWin) {
+          // PowerShell passes multi-line $env:THESEUS_PROMPT verbatim without cmd.exe newline splitting or metacharacter execution.
+          const psCmd = agentCmd.replaceAll("{{prompt}}", "$env:THESEUS_PROMPT");
+          child = spawn("powershell.exe", ["-NoProfile", "-Command", psCmd], {
+            cwd: repoPath,
+            env: { ...process.env, THESEUS_PROMPT: prompt },
+            stdio: ["ignore", "pipe", "pipe"],
+          });
+        } else {
+          const cmd = agentCmd.replaceAll("{{prompt}}", '"$THESEUS_PROMPT"');
+          child = spawn("sh", ["-c", cmd], {
+            cwd: repoPath,
+            env: { ...process.env, THESEUS_PROMPT: prompt },
+            stdio: ["ignore", "pipe", "pipe"],
+          });
+        }
       } else {
         child = isWin
           ? spawn(agentCmd, [], {
@@ -156,14 +159,25 @@ export const getGitSnapshot: GitSnapshotFn = async (repoPath) => {
       const code = line.slice(0, 2);
       const filePart = line.slice(3).trim();
       const arrowIdx = filePart.indexOf(" -> ");
-      const relPath = arrowIdx >= 0 ? filePart.slice(arrowIdx + 4) : filePart;
+      const rawRelPath = arrowIdx >= 0 ? filePart.slice(arrowIdx + 4) : filePart;
+      const relPath =
+        rawRelPath.startsWith('"') && rawRelPath.endsWith('"')
+          ? rawRelPath.slice(1, -1)
+          : rawRelPath;
       changedFiles.push(relPath);
 
       if (code === "??") {
         try {
           const abs = resolve(gitTop, relPath);
-          const content = await readFile(abs, "utf8");
-          untrackedSnippets.push(`diff --git a/${relPath} b/${relPath}\n+++ b/${relPath}\n${content}`);
+          const info = await stat(abs);
+          if (info.isFile() && info.size <= MAX_UNTRACKED_SNIPPET_BYTES) {
+            const content = await readFile(abs, "utf8");
+            untrackedSnippets.push(`diff --git a/${relPath} b/${relPath}\n+++ b/${relPath}\n${content}`);
+          } else if (info.isFile()) {
+            untrackedSnippets.push(
+              `diff --git a/${relPath} b/${relPath}\n+++ b/${relPath}\n(omitted: ${info.size} bytes exceeds 64 KB preview limit)`,
+            );
+          }
         } catch {
           // ignore unreadable/directory entries
         }

@@ -51,4 +51,18 @@ describe("baseline cache", () => {
     expect(loaded?.results["flow-a"]).toEqual(r1);
     expect(loaded?.results["flow-b"]).toEqual(r2);
   });
+
+  it("does not double-nest .theseus/.theseus when baseDir already ends with .theseus", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "theseus-base-"));
+    tempDirs.push(root);
+    const dotTheseus = path.join(root, ".theseus");
+
+    const savedPath = await saveBaseline(dotTheseus, "http://localhost:3001", [
+      makeResult("flow-a", "$97.43"),
+    ]);
+
+    expect(savedPath).toBe(path.join(dotTheseus, "baseline", "baseline.json"));
+    const loaded = await loadBaseline(dotTheseus);
+    expect(loaded?.results["flow-a"].storedValues.final_total).toBe("$97.43");
+  });
 });

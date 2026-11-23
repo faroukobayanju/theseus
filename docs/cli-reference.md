@@ -53,7 +53,7 @@ theseus discover --legacy http://127.0.0.1:4101 --modern http://127.0.0.1:4102 -
 
 ### `theseus baseline`
 
-Executes all flows in `theseus.yaml` against `legacyUrl` via Kane CLI and caches golden `storedValues`, `.evidence` paths, console/network logs, screenshots, and L1 validation results in `.theseus/.theseus/baseline/baseline.json`.
+Executes all flows in `theseus.yaml` against `legacyUrl` via Kane CLI and caches golden `storedValues`, `.evidence` paths, console/network logs, screenshots, and L1 validation results in `.theseus/baseline/baseline.json`.
 
 | Flag | Type | Default | Effect |
 |---|---|---|---|

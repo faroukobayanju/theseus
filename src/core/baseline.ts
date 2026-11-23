@@ -9,7 +9,10 @@ export interface BaselineData {
 }
 
 function baselinePath(baseDir: string): string {
-  return path.join(baseDir, ".theseus", "baseline", "baseline.json");
+  const isDotTheseus = path.basename(path.resolve(baseDir)) === ".theseus";
+  return isDotTheseus
+    ? path.join(baseDir, "baseline", "baseline.json")
+    : path.join(baseDir, ".theseus", "baseline", "baseline.json");
 }
 
 export async function saveBaseline(

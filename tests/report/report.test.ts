@@ -210,6 +210,24 @@ describe("renderReportHtml", () => {
     expect(html).not.toContain("javascript:alert(1)");
     expect(html).toContain("&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;");
   });
+
+  it("rejects data:image/svg+xml URIs and displays Kane L1 validation badges", () => {
+    const svgXss = "data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+PC9zdmc+";
+    const flow = sampleFlow({
+      legacy: {
+        ...sampleFlow().legacy,
+        evidenceValidation: { valid: true, profile: "L1" },
+      },
+      modern: {
+        ...sampleFlow().modern,
+        evidence: { screenshotDataUri: svgXss, consoleErrors: [], networkErrors: [] },
+        evidenceValidation: { valid: true, profile: "L1" },
+      },
+    });
+    const html = renderReportHtml(sampleReport({ flows: [flow] }));
+    expect(html).not.toContain("image/svg+xml");
+    expect(html).toContain("L1 Valid");
+  });
 });
 
 describe("writeReports", () => {

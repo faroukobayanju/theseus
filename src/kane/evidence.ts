@@ -1,6 +1,8 @@
 import AdmZip from "adm-zip";
 import type { EvidenceSummary, KaneBugFinding } from "../types.js";
 
+const MAX_ZIP_ENTRY_BYTES = 15 * 1024 * 1024;
+
 const EMPTY_EVIDENCE: EvidenceSummary = {
   screenshotDataUri: null,
   consoleErrors: [],
@@ -82,7 +84,9 @@ export async function extractEvidence(evidenceZipPath: string | null): Promise<E
     return { ...EMPTY_EVIDENCE, consoleErrors: [], networkErrors: [] };
   }
 
-  const entries = zip.getEntries().filter((e) => !e.isDirectory);
+  const entries = zip
+    .getEntries()
+    .filter((e) => !e.isDirectory && e.header.size <= MAX_ZIP_ENTRY_BYTES);
 
   const images = entries
     .filter((e) => /\.(png|jpe?g)$/i.test(e.entryName))

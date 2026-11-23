@@ -20,7 +20,7 @@ function escapeHtml(raw: string): string {
 
 function safeDataImageUri(uri: string | null): string | null {
   if (!uri) return null;
-  return /^data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/.test(uri) ? uri : null;
+  return /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(uri) ? uri : null;
 }
 
 function verdictClass(verdict: ReportVerdict): string {
@@ -109,12 +109,24 @@ function renderFlowCard(flow: FlowDiff): string {
   const stateBadge = flow.equivalent
     ? `<span class="badge badge-pass">EQUIVALENT</span>`
     : `<span class="badge badge-fail">DRIFT</span>`;
+  const l1Parts: string[] = [];
+  if (flow.legacy.evidenceValidation) {
+    l1Parts.push(
+      `Legacy ${escapeHtml(flow.legacy.evidenceValidation.profile)} ${flow.legacy.evidenceValidation.valid ? "Valid" : "Invalid"}`,
+    );
+  }
+  if (flow.modern.evidenceValidation) {
+    l1Parts.push(
+      `Modern ${escapeHtml(flow.modern.evidenceValidation.profile)} ${flow.modern.evidenceValidation.valid ? "Valid" : "Invalid"}`,
+    );
+  }
+  const l1Suffix = l1Parts.length > 0 ? ` &middot; ${l1Parts.join(" / ")}` : "";
 
   return `<section class="card">
     <div class="card-head">
       <div>
         <h3>${escapeHtml(flow.flowName)} <span class="muted">(${escapeHtml(flow.flowId)})</span></h3>
-        <div class="meta-line">Legacy: <code>${escapeHtml(flow.legacy.status)}</code> (${flow.legacy.durationMs}ms) &middot; Modern: <code>${escapeHtml(flow.modern.status)}</code> (${flow.modern.durationMs}ms)</div>
+        <div class="meta-line">Legacy: <code>${escapeHtml(flow.legacy.status)}</code> (${flow.legacy.durationMs}ms) &middot; Modern: <code>${escapeHtml(flow.modern.status)}</code> (${flow.modern.durationMs}ms)${l1Suffix}</div>
       </div>
       ${stateBadge}
     </div>

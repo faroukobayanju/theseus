@@ -203,10 +203,13 @@ export async function runConvergeLoop(
     }
 
     const afterSnap = await gitSnapshotFn(config.repoPath);
+    const hasGitTracking =
+      beforeSnap.commitSha !== "unknown" || afterSnap.commitSha !== "unknown";
     const noChanges =
-      afterSnap.changedFiles.length === 0 ||
-      (afterSnap.diff === beforeSnap.diff &&
-        sameFileList(afterSnap.changedFiles, beforeSnap.changedFiles));
+      hasGitTracking &&
+      (afterSnap.changedFiles.length === 0 ||
+        (afterSnap.diff === beforeSnap.diff &&
+          sameFileList(afterSnap.changedFiles, beforeSnap.changedFiles)));
 
     iterations.push({
       iter,

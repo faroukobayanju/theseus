@@ -253,4 +253,32 @@ describe("runConvergeLoop", () => {
     expect((err as SetupError).exitCode).toBe(2);
     expect(agentExecutor).not.toHaveBeenCalled();
   });
+
+  it("does not falsely halt with STUCK on non-git repoPath (commitSha === unknown) when agent fixes drift", async () => {
+    const baseDir = await makeTempDir();
+    let fixed = false;
+
+    const kaneExecutor = vi.fn(async (flow: FlowSpec, targetUrl: string) => {
+      if (targetUrl === baseConfig.legacyUrl) {
+        return makeRun(flow.id, targetUrl, "ok");
+      }
+      return makeRun(flow.id, targetUrl, fixed || flow.id !== "flow-a" ? "ok" : "bad");
+    });
+
+    const agentExecutor = vi.fn(async () => {
+      fixed = true;
+      return { exitCode: 0, stdout: "patched", stderr: "" };
+    });
+
+    const report = await runConvergeLoop(baseConfig, {
+      baseDir,
+      kaneExecutor,
+      agentExecutor,
+      gitSnapshotFn: async () => ({ commitSha: "unknown", diff: "", changedFiles: [] }),
+      digestFn: () => "non-git-pass",
+    });
+
+    expect(report.verdict).toBe("EQUIVALENT");
+    expect(agentExecutor).toHaveBeenCalledTimes(1);
+  });
 });
