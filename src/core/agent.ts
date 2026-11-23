@@ -71,8 +71,13 @@ export const invokeAgent: AgentExecutor = (prompt, repoPath, agentCmd) => {
         child.stdin?.end(prompt);
       }
     } else {
+      // Windows: npm installs claude as a .cmd shim, which spawn() cannot run without a shell.
+      const claudeBin =
+        process.platform === "win32" && process.env.APPDATA
+          ? `${process.env.APPDATA}\\npm\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe`
+          : "claude";
       child = spawn(
-        "claude",
+        claudeBin,
         ["-p", prompt, "--allowedTools", "Edit,Write,Read,Glob,Grep"],
         {
           cwd: repoPath,
