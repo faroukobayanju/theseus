@@ -14,6 +14,11 @@ export function startLegacyTodoServer(port = Number(process.env.PORT || 4201)) {
       res.end("OK");
       return;
     }
+    if (urlPath === "/favicon.ico") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
     if (urlPath === "/" || urlPath === "/index.html") {
       const html = await readFile(INDEX_PATH, "utf8");
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });

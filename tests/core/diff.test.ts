@@ -231,6 +231,34 @@ describe("diffFlowResult", () => {
     expect(diff.drifts).toEqual([]);
   });
 
+  it("ignores undeclared Kane internal keys like cp_final when declared storeKeys match", () => {
+    const todoFlow: FlowSpec = {
+      id: "todomvc-clear-completed",
+      name: "TodoMVC clear completed",
+      objective: "Store remaining_counter",
+      storeKeys: ["remaining_counter"],
+    };
+    const legacy = makeRun({
+      flowId: "todomvc-clear-completed",
+      storedValues: {
+        remaining_counter: "1 item left",
+        cp_final: "1 item left",
+      },
+    });
+    const modern = makeRun({
+      flowId: "todomvc-clear-completed",
+      storedValues: {
+        remaining_counter: "1 item left",
+        cp_final: "true",
+        remaining_todo: "Write docs",
+      },
+    });
+
+    const diff = diffFlowResult(todoFlow, legacy, modern);
+    expect(diff.equivalent).toBe(true);
+    expect(diff.drifts).toEqual([]);
+  });
+
   it("surfaces new Kane CLI --bug-detection findings as kane_bug_detected drifts", () => {
     const legacy = makeRun();
     const modern = makeRun({

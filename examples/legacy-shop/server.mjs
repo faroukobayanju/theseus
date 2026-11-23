@@ -16,6 +16,12 @@ export function startLegacyServer(port = Number(process.env.PORT || 4101)) {
       return;
     }
 
+    if (urlPath === "/favicon.ico") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     if (urlPath === "/" || urlPath === "/index.html") {
       try {
         const html = await readFile(INDEX_PATH, "utf8");

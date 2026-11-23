@@ -147,28 +147,16 @@ export function diffFlowResult(
     }
   }
 
-  // 2. For undeclared keys Kane stored on its own:
-  //    - If the flow declared explicit storeKeys, only compare extra keys present in BOTH runs
-  //      (prevents non-deterministic LLM key names like `promo_error_2` from causing false STUCK
-  //      while still catching real value mismatches when both runs store the same bonus key).
-  //    - If the flow declared NO storeKeys, compare all canonical legacy keys.
-  for (const key of Object.keys(legacyCanon)) {
-    if (comparedKeys.has(key)) continue;
-    const expected = legacyCanon[key];
-    const actual = modernCanon[key];
+  // 2. When a flow declares explicit storeKeys, compare ONLY those declared keys
+  //    (prevents Kane's internal checkpoint variables like `cp_final` flipping
+  //    between strings and booleans from causing false STUCK verdicts).
+  //    When a flow declares NO storeKeys, compare all canonical legacy keys.
+  if (declaredKeys.length === 0) {
+    for (const key of Object.keys(legacyCanon)) {
+      if (comparedKeys.has(key)) continue;
+      const expected = legacyCanon[key];
+      const actual = modernCanon[key];
 
-    if (declaredKeys.length > 0) {
-      if (actual === undefined) continue;
-      if (!valuesMatch(expected, actual, flow.numericTolerance)) {
-        drifts.push({
-          flowId: flow.id,
-          kind: "value_mismatch",
-          key,
-          expected,
-          actual,
-        });
-      }
-    } else {
       if (actual === undefined) {
         drifts.push({
           flowId: flow.id,

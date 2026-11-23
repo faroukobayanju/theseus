@@ -17,6 +17,12 @@ export function startModernServer(port = Number(process.env.PORT || 4102)) {
       return;
     }
 
+    if (urlPath === "/favicon.ico") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     if (urlPath === "/pricing.mjs") {
       try {
         const js = await readFile(PRICING_PATH, "utf8");

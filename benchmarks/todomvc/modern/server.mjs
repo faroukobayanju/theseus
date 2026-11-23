@@ -15,6 +15,11 @@ export function startModernTodoServer(port = Number(process.env.PORT || 4202)) {
       res.end("OK");
       return;
     }
+    if (urlPath === "/favicon.ico") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
     if (urlPath === "/store.mjs") {
       const js = await readFile(STORE_PATH, "utf8");
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-store" });
