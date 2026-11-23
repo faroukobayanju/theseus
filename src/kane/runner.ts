@@ -151,9 +151,15 @@ export async function runKaneFlow(
       resolve({ exitCode: timedOut ? 3 : code, stderr: stderrBuf });
     };
 
-    const child = spawnImpl("kane-cli", ["run", objective, "--agent", "--headless"], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const kaneArgs = ["run", objective, "--agent", "--headless"];
+    // Windows: npm installs kane-cli as a .cmd shim, which spawn() cannot run without a shell.
+    const winKane =
+      !opts?.spawnFn && process.platform === "win32" && process.env.APPDATA
+        ? `${process.env.APPDATA}\\npm\\node_modules\\@testmuai\\kane-cli\\bin\\kane-cli.cjs`
+        : undefined;
+    const child = (winKane
+      ? spawnImpl(process.execPath, [winKane, ...kaneArgs], { stdio: ["ignore", "pipe", "pipe"] })
+      : spawnImpl("kane-cli", kaneArgs, { stdio: ["ignore", "pipe", "pipe"] }));
 
     const timer =
       opts?.timeoutSec && opts.timeoutSec > 0
