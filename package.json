@@ -1,6 +1,6 @@
 {
   "name": "theseus-verify",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Rewrite a legacy web app and prove behavioral equivalence with Kane CLI.",
   "type": "module",
   "bin": {
@@ -8,7 +8,8 @@
   },
   "files": [
     "dist",
-    "examples"
+    "examples",
+    "benchmarks"
   ],
   "scripts": {
     "build": "tsup",

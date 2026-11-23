@@ -4,9 +4,14 @@ import { createServer } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+export type DemoSuite = "shop" | "todomvc";
+
 export interface RunningDemoServers {
+  suite: DemoSuite;
   legacyUrl: string;
   modernUrl: string;
+  configPath: string;
+  repoPath: string;
   close: () => Promise<void>;
 }
 
@@ -27,14 +32,18 @@ function getFreePort(): Promise<number> {
   });
 }
 
-function resolveRootDir(rootDir?: string): string {
+export function resolvePackageRoot(rootDir?: string): string {
   if (rootDir) return resolve(rootDir);
   const cwd = process.cwd();
   if (existsSync(join(cwd, "examples", "legacy-shop", "server.mjs"))) {
     return cwd;
   }
   const moduleDir = dirname(fileURLToPath(import.meta.url));
-  return resolve(moduleDir, "..");
+  const candidate = resolve(moduleDir, "..");
+  if (existsSync(join(candidate, "examples", "legacy-shop", "server.mjs"))) {
+    return candidate;
+  }
+  return resolve(moduleDir, "../..");
 }
 
 function stopChild(child: ChildProcess): Promise<void> {
@@ -82,10 +91,23 @@ async function waitForHealth(
 
 export async function startDemoServers(
   rootDir?: string,
+  suite: DemoSuite = "shop",
 ): Promise<RunningDemoServers> {
-  const baseDir = resolveRootDir(rootDir);
-  const legacyScript = join(baseDir, "examples", "legacy-shop", "server.mjs");
-  const modernScript = join(baseDir, "examples", "modern-shop", "server.mjs");
+  const baseDir = resolvePackageRoot(rootDir);
+  const isTodo = suite === "todomvc";
+
+  const legacyScript = isTodo
+    ? join(baseDir, "benchmarks", "todomvc", "legacy", "server.mjs")
+    : join(baseDir, "examples", "legacy-shop", "server.mjs");
+  const modernScript = isTodo
+    ? join(baseDir, "benchmarks", "todomvc", "modern", "server.mjs")
+    : join(baseDir, "examples", "modern-shop", "server.mjs");
+  const configPath = isTodo
+    ? join(baseDir, "benchmarks", "todomvc", "theseus.yaml")
+    : join(baseDir, "examples", "theseus.demo.yaml");
+  const repoPath = isTodo
+    ? join(baseDir, "benchmarks", "todomvc", "modern")
+    : join(baseDir, "examples", "modern-shop");
 
   const [legacyPort, modernPort] = await Promise.all([
     getFreePort(),
@@ -119,5 +141,5 @@ export async function startDemoServers(
     throw err;
   }
 
-  return { legacyUrl, modernUrl, close };
+  return { suite, legacyUrl, modernUrl, configPath, repoPath, close };
 }

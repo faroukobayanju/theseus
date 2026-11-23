@@ -17,12 +17,19 @@ export async function scaffoldConfig(
     modernUrl: opts?.modernUrl ?? "http://localhost:4102",
     repoPath: opts?.repoPath ?? ".",
     maxIters: 5,
+    kane: {
+      assertionMode: "dom",
+      finalValidation: true,
+      bugDetection: "continue",
+      validateEvidence: true,
+      mergeEvidence: true,
+    },
     flows: [
       {
         id: "home-smoke",
         name: "Home page heading",
         objective:
-          "Open {{url}}, read the main heading text, and store it as 'heading'",
+          "Open {{url}}, read the main heading text, and store it strictly under the exact key 'heading' (do not create duplicate or numbered keys)",
         storeKeys: ["heading"],
       },
     ],

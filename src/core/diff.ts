@@ -27,6 +27,69 @@ function valuesMatch(expected: string, actual: string, tolerance?: number): bool
   return false;
 }
 
+/**
+ * Strips auto-incremented LLM suffixes such as `promo_error_2` -> `promo_error`
+ * or `final_total_1` -> `final_total`.
+ */
+export function baseKeyName(key: string): string {
+  const match = key.match(/^(.+?)[_-](\d+)$/);
+  return match ? match[1] : key;
+}
+
+/**
+ * Resolves a canonical key from a storedValues map, falling back to a single
+ * suffixed alias (e.g. `promo_error_1` / `promo_error_2`) if Kane stored the
+ * value under a numbered variant instead of the exact pinned name.
+ */
+function lookupStoredValue(
+  stored: Record<string, string>,
+  key: string,
+): string | undefined {
+  if (stored[key] !== undefined) return stored[key];
+
+  // Look for numbered variants of this key (e.g., promo_error_1, promo_error_2)
+  const variants = Object.keys(stored)
+    .filter((k) => k !== key && baseKeyName(k) === key)
+    .sort();
+  if (variants.length > 0) {
+    return stored[variants[variants.length - 1]];
+  }
+  return undefined;
+}
+
+/**
+ * Removes redundant numbered duplicate keys (e.g. `promo_error_2` when
+ * `promo_error` already exists in the same run) so Kane's non-deterministic
+ * variable naming cannot manufacture false `missing_key` drifts.
+ */
+export function canonicalizeStoredValues(
+  stored: Record<string, string>,
+  declaredKeys: string[],
+): Record<string, string> {
+  const declaredSet = new Set(declaredKeys);
+  const out: Record<string, string> = {};
+
+  for (const key of declaredKeys) {
+    const val = lookupStoredValue(stored, key);
+    if (val !== undefined) {
+      out[key] = val;
+    }
+  }
+
+  for (const [key, val] of Object.entries(stored)) {
+    if (declaredSet.has(key)) continue;
+    const base = baseKeyName(key);
+    // Drop numbered suffix aliases (like promo_error_2) whenever their base key is
+    // already declared or already present in this run's stored values.
+    if (base !== key && (declaredSet.has(base) || stored[base] !== undefined)) {
+      continue;
+    }
+    out[key] = val;
+  }
+
+  return out;
+}
+
 export function diffFlowResult(
   flow: FlowSpec,
   legacy: KaneRunResult,
@@ -43,12 +106,16 @@ export function diffFlowResult(
     });
   }
 
-  const keys = Array.from(
-    new Set([...flow.storeKeys, ...Object.keys(legacy.storedValues)]),
-  );
-  for (const key of keys) {
-    const expected = legacy.storedValues[key];
-    const actual = modern.storedValues[key];
+  const declaredKeys = flow.storeKeys ?? [];
+  const legacyCanon = canonicalizeStoredValues(legacy.storedValues, declaredKeys);
+  const modernCanon = canonicalizeStoredValues(modern.storedValues, declaredKeys);
+
+  // 1. Always compare every explicitly declared storeKey strictly (missing in modern = real drift).
+  const comparedKeys = new Set<string>();
+  for (const key of declaredKeys) {
+    comparedKeys.add(key);
+    const expected = legacyCanon[key];
+    const actual = modernCanon[key];
     if (expected === undefined) continue;
 
     if (actual === undefined) {
@@ -67,6 +134,48 @@ export function diffFlowResult(
         expected,
         actual,
       });
+    }
+  }
+
+  // 2. For undeclared keys Kane stored on its own:
+  //    - If the flow declared explicit storeKeys, only compare extra keys present in BOTH runs
+  //      (prevents non-deterministic LLM key names like `promo_error_2` from causing false STUCK
+  //      while still catching real value mismatches when both runs store the same bonus key).
+  //    - If the flow declared NO storeKeys, compare all canonical legacy keys.
+  for (const key of Object.keys(legacyCanon)) {
+    if (comparedKeys.has(key)) continue;
+    const expected = legacyCanon[key];
+    const actual = modernCanon[key];
+
+    if (declaredKeys.length > 0) {
+      if (actual === undefined) continue;
+      if (!valuesMatch(expected, actual, flow.numericTolerance)) {
+        drifts.push({
+          flowId: flow.id,
+          kind: "value_mismatch",
+          key,
+          expected,
+          actual,
+        });
+      }
+    } else {
+      if (actual === undefined) {
+        drifts.push({
+          flowId: flow.id,
+          kind: "missing_key",
+          key,
+          expected,
+          actual: "<missing>",
+        });
+      } else if (!valuesMatch(expected, actual, flow.numericTolerance)) {
+        drifts.push({
+          flowId: flow.id,
+          kind: "value_mismatch",
+          key,
+          expected,
+          actual,
+        });
+      }
     }
   }
 
@@ -97,6 +206,23 @@ export function diffFlowResult(
         actual: sig,
       });
     }
+  }
+
+  // 3. Surface new product bugs caught natively by Kane CLI's `--bug-detection` engine.
+  const legacyBugs = new Set(
+    (legacy.evidence.bugsDetected ?? []).map((b) => normalizeValue(b.title).toLowerCase()),
+  );
+  const seenModernBugs = new Set<string>();
+  for (const bug of modern.evidence.bugsDetected ?? []) {
+    const sig = normalizeValue(bug.title).toLowerCase();
+    if (!sig || legacyBugs.has(sig) || seenModernBugs.has(sig)) continue;
+    seenModernBugs.add(sig);
+    drifts.push({
+      flowId: flow.id,
+      kind: "kane_bug_detected",
+      expected: "none",
+      actual: bug.detail ? `${bug.title}: ${bug.detail}` : bug.title,
+    });
   }
 
   return {

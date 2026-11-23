@@ -1,6 +1,9 @@
 import { execFile, spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
 import type { FlowDiff } from "../types.js";
+import { spawnResolved } from "../utils/spawn.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -43,6 +46,13 @@ export function buildDriftPrompt(diffs: FlowDiff[], iter: number): string {
         sections.push(`- HTTP ${err.status} ${err.url}`);
       }
     }
+
+    if ((flow.modern.evidence.bugsDetected ?? []).length > 0) {
+      sections.push("", "Kane CLI native bug detections:");
+      for (const bug of flow.modern.evidence.bugsDetected ?? []) {
+        sections.push(`- ${bug.title}${bug.detail ? ` (${bug.detail})` : ""}`);
+      }
+    }
   }
 
   sections.push(
@@ -54,31 +64,49 @@ export function buildDriftPrompt(diffs: FlowDiff[], iter: number): string {
 
 export const invokeAgent: AgentExecutor = (prompt, repoPath, agentCmd) => {
   return new Promise((resolve, reject) => {
+    const isWin = process.platform === "win32";
     let child;
+
     if (agentCmd) {
       if (agentCmd.includes("{{prompt}}")) {
-        const cmd = agentCmd.replaceAll("{{prompt}}", '"$THESEUS_PROMPT"');
-        child = spawn("sh", ["-c", cmd], {
-          cwd: repoPath,
-          env: { ...process.env, THESEUS_PROMPT: prompt },
-          stdio: ["ignore", "pipe", "pipe"],
-        });
+        const envRef = isWin ? '"%THESEUS_PROMPT%"' : '"$THESEUS_PROMPT"';
+        const cmd = agentCmd.replaceAll("{{prompt}}", envRef);
+        child = isWin
+          ? spawn(cmd, [], {
+              cwd: repoPath,
+              shell: true,
+              env: { ...process.env, THESEUS_PROMPT: prompt },
+              stdio: ["ignore", "pipe", "pipe"],
+            })
+          : spawn("sh", ["-c", cmd], {
+              cwd: repoPath,
+              env: { ...process.env, THESEUS_PROMPT: prompt },
+              stdio: ["ignore", "pipe", "pipe"],
+            });
       } else {
-        child = spawn("sh", ["-c", agentCmd], {
-          cwd: repoPath,
-          stdio: ["pipe", "pipe", "pipe"],
-        });
+        child = isWin
+          ? spawn(agentCmd, [], {
+              cwd: repoPath,
+              shell: true,
+              stdio: ["pipe", "pipe", "pipe"],
+            })
+          : spawn("sh", ["-c", agentCmd], {
+              cwd: repoPath,
+              stdio: ["pipe", "pipe", "pipe"],
+            });
         child.stdin?.end(prompt);
       }
     } else {
-      child = spawn(
+      // Pipe the multi-line drift prompt via stdin so Windows cmd/process args never mangle newlines or quotes.
+      child = spawnResolved(
         "claude",
-        ["-p", prompt, "--allowedTools", "Edit,Write,Read,Glob,Grep"],
+        ["-p", "--allowedTools", "Edit,Write,Read,Glob,Grep"],
         {
           cwd: repoPath,
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: ["pipe", "pipe", "pipe"],
         },
       );
+      child.stdin?.end(prompt);
     }
 
     let stdout = "";
@@ -117,17 +145,36 @@ export const getGitSnapshot: GitSnapshotFn = async (repoPath) => {
     (await runGit(["diff"], repoPath)) ??
     "";
 
-  const statusOut = await runGit(["status", "--porcelain"], repoPath);
-  const changedFiles = statusOut
-    ? statusOut
-        .split(/\r?\n/)
-        .filter((line) => line.length >= 4)
-        .map((line) => {
-          const filePart = line.slice(3).trim();
-          const arrowIdx = filePart.indexOf(" -> ");
-          return arrowIdx >= 0 ? filePart.slice(arrowIdx + 4) : filePart;
-        })
-    : [];
+  const statusOut = await runGit(["status", "--porcelain", "-uall", "--", "."], repoPath);
+  const changedFiles: string[] = [];
+  const untrackedSnippets: string[] = [];
 
-  return { commitSha, diff: diffOut, changedFiles };
+  if (statusOut) {
+    const gitTop = (await runGit(["rev-parse", "--show-toplevel"], repoPath))?.trim() ?? repoPath;
+    for (const line of statusOut.split(/\r?\n/)) {
+      if (line.length < 4) continue;
+      const code = line.slice(0, 2);
+      const filePart = line.slice(3).trim();
+      const arrowIdx = filePart.indexOf(" -> ");
+      const relPath = arrowIdx >= 0 ? filePart.slice(arrowIdx + 4) : filePart;
+      changedFiles.push(relPath);
+
+      if (code === "??") {
+        try {
+          const abs = resolve(gitTop, relPath);
+          const content = await readFile(abs, "utf8");
+          untrackedSnippets.push(`diff --git a/${relPath} b/${relPath}\n+++ b/${relPath}\n${content}`);
+        } catch {
+          // ignore unreadable/directory entries
+        }
+      }
+    }
+  }
+
+  const combinedDiff =
+    untrackedSnippets.length > 0
+      ? [diffOut, ...untrackedSnippets].filter(Boolean).join("\n")
+      : diffOut;
+
+  return { commitSha, diff: combinedDiff, changedFiles };
 };

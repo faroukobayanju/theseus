@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { baseKeyName } from "../core/diff.js";
 import type {
   DriftItem,
   EquivalenceReport,
@@ -46,17 +47,28 @@ function renderStoredValuesTable(flow: FlowDiff): string {
     return `<p class="muted">No stored values recorded.</p>`;
   }
 
+  const driftedKeys = new Set(
+    flow.drifts.map((d) => d.key).filter((k): k is string => Boolean(k)),
+  );
+
   const rows = keys
     .map((key) => {
       const expected = flow.legacy.storedValues[key];
       const actual = flow.modern.storedValues[key];
       const match = expected !== undefined && actual !== undefined && expected.trim() === actual.trim();
-      const rowClass = match ? "row-match" : "row-diff";
+      const base = baseKeyName(key);
+      const isCollapsedAlias =
+        !driftedKeys.has(key) &&
+        !match &&
+        ((base !== key && (flow.legacy.storedValues[base] !== undefined || flow.modern.storedValues[base] !== undefined)) ||
+          flow.equivalent);
+      const rowClass = match || isCollapsedAlias ? "row-match" : "row-diff";
+      const label = match ? "MATCH" : isCollapsedAlias ? "IGNORED (ALIAS)" : "DRIFT";
       return `<tr class="${rowClass}">
         <td><code>${escapeHtml(key)}</code></td>
         <td><code>${expected !== undefined ? escapeHtml(expected) : "<em>missing</em>"}</code></td>
         <td><code>${actual !== undefined ? escapeHtml(actual) : "<em>missing</em>"}</code></td>
-        <td>${match ? "MATCH" : "DRIFT"}</td>
+        <td>${label}</td>
       </tr>`;
     })
     .join("");
@@ -259,7 +271,15 @@ export function renderReportHtml(report: EquivalenceReport): string {
       <div><dt>Legacy URL</dt><dd>${escapeHtml(report.legacyUrl)}</dd></div>
       <div><dt>Modern URL</dt><dd>${escapeHtml(report.modernUrl)}</dd></div>
       <div><dt>Git Commit</dt><dd>${escapeHtml(report.gitCommitSha)}</dd></div>
-      <div><dt>SHA-256 Digest</dt><dd>${escapeHtml(report.digest)}</dd></div>
+      <div><dt>SHA-256 Digest</dt><dd>${escapeHtml(report.digest)}</dd></div>${
+        report.mergedEvidencePath
+          ? `\n      <div><dt>Merged Kane Evidence</dt><dd>${escapeHtml(report.mergedEvidencePath)}</dd></div>`
+          : ""
+      }${
+        report.kaneFeaturesUsed && report.kaneFeaturesUsed.length > 0
+          ? `\n      <div><dt>Kane CLI Features</dt><dd>${escapeHtml(report.kaneFeaturesUsed.join(" · "))}</dd></div>`
+          : ""
+      }
     </dl>
   </header>
   ${report.flows.map(renderFlowCard).join("\n  ")}

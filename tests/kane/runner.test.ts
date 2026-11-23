@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { ChildProcess, spawn } from "node:child_process";
 import AdmZip from "adm-zip";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseNdjsonStream, runKaneFlow } from "../../src/kane/runner.js";
+import { buildKaneArgs, parseNdjsonStream, runKaneFlow } from "../../src/kane/runner.js";
 import type { FlowSpec } from "../../src/types.js";
 
 const dirs: string[] = [];
@@ -162,5 +162,77 @@ describe("runKaneFlow", () => {
     expect(result.exitCode).toBe(2);
     expect(result.status).toBe("setup_error");
     expect(result.summary).toContain("ENOENT");
+  });
+
+  it("wires full Kane CLI flags (assertion-mode, final-validation, bug-detection, variables) and testmd run", () => {
+    const inlineArgs = buildKaneArgs(
+      {
+        ...SAMPLE_FLOW,
+        variables: { promo: { value: "SAVE10" } },
+      },
+      "http://127.0.0.1:4101",
+      {
+        kaneSettings: {
+          assertionMode: "dom",
+          finalValidation: true,
+          bugDetection: "continue",
+          maxSteps: 30,
+        },
+      },
+    );
+    expect(inlineArgs).toEqual([
+      "run",
+      "Go to http://127.0.0.1:4101, apply SAVE10, and store total as 'final_total'",
+      "--agent",
+      "--headless",
+      "--assertion-mode",
+      "dom",
+      "--final-validation",
+      "on",
+      "--bug-detection",
+      "continue",
+      "--max-steps",
+      "30",
+      "--variables",
+      JSON.stringify({ promo: { value: "SAVE10" } }),
+    ]);
+
+    const testmdArgs = buildKaneArgs(
+      {
+        id: "checkout-md",
+        name: "Checkout test.md",
+        testmdPath: "flows/checkout_test.md",
+        storeKeys: ["final_total"],
+      },
+      "http://127.0.0.1:4102",
+      { kaneSettings: { bugDetection: "continue" } },
+    );
+    expect(testmdArgs).toEqual([
+      "testmd",
+      "run",
+      "flows/checkout_test.md",
+      "--override-start-url",
+      "http://127.0.0.1:4102",
+      "--local",
+      "--agent",
+      "--headless",
+      "--bug-detection",
+      "continue",
+    ]);
+  });
+
+  it("extracts Kane native bug detections from NDJSON stream", () => {
+    const raw = [
+      JSON.stringify({
+        type: "bug_detected",
+        bug: { title: "Clear completed deleted active todos", severity: "high" },
+      }),
+      JSON.stringify({ type: "run_end", summary: "done" }),
+    ].join("\n");
+
+    const parsed = parseNdjsonStream(raw);
+    expect(parsed.bugsDetected).toEqual([
+      { title: "Clear completed deleted active todos", severity: "high", detail: undefined },
+    ]);
   });
 });

@@ -2,12 +2,19 @@ legacyUrl: http://127.0.0.1:4101
 modernUrl: http://127.0.0.1:4102
 repoPath: examples/modern-shop
 maxIters: 5
+kane:
+  assertionMode: dom
+  finalValidation: true
+  bugDetection: continue
+  validateEvidence: true
+  mergeEvidence: true
 flows:
   - id: discount-tax-rounding
     name: Discount before tax rounding
     objective: >-
       Open {{url}}, add 1 Widget Pro to the cart, enter promo code SAVE10,
-      click Apply, read the Final Total text, and store it as 'final_total'.
+      click Apply, read the Final Total text, and store it strictly under the
+      exact key 'final_total' (do not create duplicate or numbered keys).
     storeKeys:
       - final_total
   - id: promo-stacking-guard
@@ -15,13 +22,15 @@ flows:
     objective: >-
       Open {{url}}, add 1 Widget Pro to the cart, enter promo code SAVE10 and
       click Apply, then enter promo code SAVE20 and click Apply, read the promo
-      error message text, and store it as 'promo_error'.
+      error message text, and store it strictly under the exact key
+      'promo_error' (do not create duplicate or numbered keys).
     storeKeys:
       - promo_error
   - id: minimum-order-guard
     name: Minimum order checkout guard
     objective: >-
       Open {{url}}, add 1 Sticker to the cart, click Checkout, read the checkout
-      error message text, and store it as 'checkout_error'.
+      error message text, and store it strictly under the exact key
+      'checkout_error' (do not create duplicate or numbered keys).
     storeKeys:
       - checkout_error

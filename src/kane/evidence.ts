@@ -1,5 +1,5 @@
 import AdmZip from "adm-zip";
-import type { EvidenceSummary } from "../types.js";
+import type { EvidenceSummary, KaneBugFinding } from "../types.js";
 
 const EMPTY_EVIDENCE: EvidenceSummary = {
   screenshotDataUri: null,
@@ -11,7 +11,7 @@ function toEntryArray(parsed: unknown): unknown[] {
   if (Array.isArray(parsed)) return parsed;
   if (parsed && typeof parsed === "object") {
     const obj = parsed as Record<string, unknown>;
-    for (const key of ["entries", "logs", "messages", "requests"]) {
+    for (const key of ["entries", "logs", "messages", "requests", "bugs", "findings"]) {
       if (Array.isArray(obj[key])) return obj[key];
     }
     const log = obj.log;
@@ -54,6 +54,22 @@ function extractNetworkErrors(parsed: unknown): Array<{ url: string; status: num
   return errors;
 }
 
+function extractBugs(parsed: unknown): KaneBugFinding[] {
+  const bugs: KaneBugFinding[] = [];
+  for (const item of toEntryArray(parsed)) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    const title = String(rec.title ?? rec.summary ?? rec.message ?? "").trim();
+    if (!title) continue;
+    bugs.push({
+      title,
+      severity: typeof rec.severity === "string" ? rec.severity : undefined,
+      detail: typeof rec.detail === "string" ? rec.detail : undefined,
+    });
+  }
+  return bugs;
+}
+
 export async function extractEvidence(evidenceZipPath: string | null): Promise<EvidenceSummary> {
   if (!evidenceZipPath) {
     return { ...EMPTY_EVIDENCE, consoleErrors: [], networkErrors: [] };
@@ -82,6 +98,7 @@ export async function extractEvidence(evidenceZipPath: string | null): Promise<E
 
   const consoleErrors: string[] = [];
   const networkErrors: Array<{ url: string; status: number }> = [];
+  const bugsDetected: KaneBugFinding[] = [];
 
   for (const entry of entries) {
     const name = entry.entryName.toLowerCase();
@@ -118,8 +135,12 @@ export async function extractEvidence(evidenceZipPath: string | null): Promise<E
       }
     } else if (name.includes("network")) {
       for (const item of parsedItems) networkErrors.push(...extractNetworkErrors(item));
+    } else if (name.includes("bug")) {
+      for (const item of parsedItems) bugsDetected.push(...extractBugs(item));
     }
   }
 
-  return { screenshotDataUri, consoleErrors, networkErrors };
+  return bugsDetected.length > 0
+    ? { screenshotDataUri, consoleErrors, networkErrors, bugsDetected }
+    : { screenshotDataUri, consoleErrors, networkErrors };
 }

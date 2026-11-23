@@ -149,4 +149,85 @@ describe("diffFlowResult", () => {
     expect(fp1).toMatch(/^[a-f0-9]{64}$/);
     expect(fp1).toBe(fp2);
   });
+
+  it("ignores Kane numbered duplicate keys (e.g. promo_error_2) when declared key matches", () => {
+    const promoFlow: FlowSpec = {
+      id: "promo-stacking-guard",
+      name: "Promo stacking guard",
+      objective: "Store promo_error",
+      storeKeys: ["promo_error"],
+    };
+    const legacy = makeRun({
+      flowId: "promo-stacking-guard",
+      storedValues: {
+        promo_error: "Promo codes cannot be combined",
+        promo_error_2: "Promo codes cannot be combined",
+      },
+    });
+    const modern = makeRun({
+      flowId: "promo-stacking-guard",
+      storedValues: {
+        promo_error: "Promo codes cannot be combined",
+      },
+    });
+
+    const diff = diffFlowResult(promoFlow, legacy, modern);
+    expect(diff.equivalent).toBe(true);
+    expect(diff.drifts).toEqual([]);
+  });
+
+  it("still flags missing_key when a declared storeKey is truly missing in modern", () => {
+    const promoFlow: FlowSpec = {
+      id: "promo-stacking-guard",
+      name: "Promo stacking guard",
+      objective: "Store promo_error",
+      storeKeys: ["promo_error"],
+    };
+    const legacy = makeRun({
+      flowId: "promo-stacking-guard",
+      storedValues: {
+        promo_error: "Promo codes cannot be combined",
+        promo_error_2: "Promo codes cannot be combined",
+      },
+    });
+    const modern = makeRun({
+      flowId: "promo-stacking-guard",
+      storedValues: {},
+    });
+
+    const diff = diffFlowResult(promoFlow, legacy, modern);
+    expect(diff.equivalent).toBe(false);
+    expect(diff.drifts).toEqual([
+      {
+        flowId: "promo-stacking-guard",
+        kind: "missing_key",
+        key: "promo_error",
+        expected: "Promo codes cannot be combined",
+        actual: "<missing>",
+      },
+    ]);
+  });
+
+  it("surfaces new Kane CLI --bug-detection findings as kane_bug_detected drifts", () => {
+    const legacy = makeRun();
+    const modern = makeRun({
+      evidence: {
+        screenshotDataUri: null,
+        consoleErrors: [],
+        networkErrors: [],
+        bugsDetected: [{ title: "Checkout button disabled on valid cart", severity: "high" }],
+      },
+    });
+
+    const diff = diffFlowResult(baseFlow, legacy, modern);
+    expect(diff.equivalent).toBe(false);
+    expect(diff.drifts).toEqual([
+      {
+        flowId: "discount-tax",
+        kind: "kane_bug_detected",
+        expected: "none",
+        actual: "Checkout button disabled on valid cart",
+      },
+    ]);
+  });
 });

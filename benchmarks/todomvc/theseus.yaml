@@ -1,0 +1,39 @@
+legacyUrl: http://127.0.0.1:4201
+modernUrl: http://127.0.0.1:4202
+repoPath: benchmarks/todomvc/modern
+maxIters: 5
+kane:
+  assertionMode: dom
+  finalValidation: true
+  bugDetection: continue
+  validateEvidence: true
+  mergeEvidence: true
+flows:
+  - id: todomvc-singular-counter
+    name: TodoMVC singular items-left grammar
+    objective: >-
+      Open {{url}}, type 'Buy milk' into the new todo input, click Add, read the
+      items-left counter text in the footer, and store it strictly under the
+      exact key 'items_left' (do not create duplicate or numbered keys).
+    storeKeys:
+      - items_left
+  - id: todomvc-whitespace-guard
+    name: TodoMVC whitespace-only todo guard
+    objective: >-
+      Open {{url}}, type 'Buy milk' into the new todo input and click Add, then
+      type three spaces '   ' into the new todo input and click Add, count how
+      many todo items appear in the list, and store the count as a number
+      strictly under the exact key 'todo_count' (do not create duplicate or
+      numbered keys).
+    storeKeys:
+      - todo_count
+  - id: todomvc-clear-completed
+    name: TodoMVC clear completed preserves active todos
+    objective: >-
+      Open {{url}}, add a todo 'Ship Theseus', add a second todo 'Write docs',
+      check the checkbox next to 'Ship Theseus' to mark it completed, click
+      'Clear completed', read the remaining items-left counter text in the
+      footer, and store it strictly under the exact key 'remaining_counter' (do
+      not create duplicate or numbered keys).
+    storeKeys:
+      - remaining_counter

@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import {
   SetupError,
   type EquivalenceReport,
@@ -7,6 +8,7 @@ import {
   type KaneRunResult,
   type TheseusConfig,
 } from "../types.js";
+import { mergeEvidencePacks } from "../kane/packs.js";
 import {
   buildDriftPrompt,
   getGitSnapshot,
@@ -25,6 +27,7 @@ export interface ConvergeOptions {
   kaneExecutor: (flow: FlowSpec, targetUrl: string) => Promise<KaneRunResult>;
   agentExecutor?: AgentExecutor;
   gitSnapshotFn?: GitSnapshotFn;
+  mergeEvidenceFn?: typeof mergeEvidencePacks;
   digestFn: (input: {
     config: TheseusConfig;
     flows: FlowDiff[];
@@ -39,6 +42,29 @@ function sameFileList(a: string[], b: string[]): boolean {
   const sa = [...a].sort();
   const sb = [...b].sort();
   return sa.every((v, i) => v === sb[i]);
+}
+
+function collectKaneFeatures(config: TheseusConfig, mergedPath: string | null): string[] {
+  const used = new Set<string>();
+  const hasTestmd = config.flows.some((f) => Boolean(f.testmdPath));
+  const hasInline = config.flows.some((f) => Boolean(f.objective && !f.testmdPath));
+
+  if (hasInline) used.add("kane-cli run --agent --headless");
+  if (hasTestmd) used.add("kane-cli testmd run --override-start-url --local");
+
+  const bugMode = config.kane?.bugDetection ?? config.flows.find((f) => f.bugDetection)?.bugDetection;
+  if (bugMode && bugMode !== "off") used.add(`--bug-detection ${bugMode}`);
+
+  const finalVal = config.kane?.finalValidation ?? config.flows.some((f) => f.finalValidation);
+  if (finalVal) used.add("--final-validation on");
+
+  const assertMode = config.kane?.assertionMode ?? config.flows.find((f) => f.assertionMode)?.assertionMode;
+  if (assertMode) used.add(`--assertion-mode ${assertMode}`);
+
+  if (config.kane?.validateEvidence) used.add("kane-cli evidence validate --profile L1");
+  if (mergedPath) used.add("kane-cli evidence merge");
+
+  return Array.from(used);
 }
 
 async function runFlows(
@@ -66,6 +92,7 @@ export async function runConvergeLoop(
   const maxIters = opts.maxIters ?? config.maxIters;
   const agentExecutor = opts.agentExecutor ?? invokeAgent;
   const gitSnapshotFn = opts.gitSnapshotFn ?? getGitSnapshot;
+  const mergeFn = opts.mergeEvidenceFn ?? mergeEvidencePacks;
   const progress = opts.onProgress ?? (() => {});
 
   const cached = opts.refreshBaseline ? null : await loadBaseline(opts.baseDir);
@@ -106,12 +133,30 @@ export async function runConvergeLoop(
   ): Promise<EquivalenceReport> => {
     const flows = getAllDiffs();
     const snap = await gitSnapshotFn(config.repoPath);
+
+    // Seal all legacy + modern Kane .evidence packs into one merged archive when enabled
+    let mergedEvidencePath: string | null = null;
+    if (config.kane?.mergeEvidence) {
+      const packs = flows
+        .flatMap((f) => [f.legacy.evidencePath, f.modern.evidencePath])
+        .filter((p): p is string => typeof p === "string" && p.length > 0);
+      if (packs.length > 0) {
+        progress(`Merging ${packs.length} Kane .evidence pack(s) via kane-cli evidence merge`);
+        const runId = `theseus-${Date.now()}`;
+        const outPath = join(opts.baseDir, "theseus-certificate.evidence");
+        const merged = await mergeFn(packs, outPath, runId, config.kane.policyFile);
+        mergedEvidencePath = merged.mergedPath;
+      }
+    }
+
     const digest = opts.digestFn({
       config,
       flows,
       gitCommitSha: snap.commitSha,
       verdict,
     });
+    const kaneFeaturesUsed = collectKaneFeatures(config, mergedEvidencePath);
+
     return {
       version: "1.0",
       verdict,
@@ -120,6 +165,8 @@ export async function runConvergeLoop(
       digest,
       legacyUrl: config.legacyUrl,
       modernUrl: config.modernUrl,
+      ...(mergedEvidencePath ? { mergedEvidencePath } : {}),
+      ...(kaneFeaturesUsed.length > 0 ? { kaneFeaturesUsed } : {}),
       flows,
       iterations,
     };
