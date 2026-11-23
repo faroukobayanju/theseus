@@ -42,7 +42,21 @@ Boots two zero-DB local apps—**LegacyMart 2012** (vanilla HTML/JS) and **Moder
 node dist/cli.js demo
 ```
 
+Without a Claude Pro account, pass any CLI coding agent via `--agent-cmd` (for example OpenCode in standalone mode):
+
+```bash
+node dist/cli.js demo --agent-cmd "opencode run --standalone --auto {{prompt}}"
+```
+
 Open `.theseus/report.html` to view the signed equivalence certificate, side-by-side Kane screenshots, and per-iteration git diffs.
+
+### Website (`site/`)
+A standalone Next.js App Router landing page lives in `site/`:
+
+```bash
+npm --prefix site install
+npm --prefix site run dev
+```
 
 ## CLI Commands
 

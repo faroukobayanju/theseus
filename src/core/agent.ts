@@ -47,7 +47,7 @@ export function buildDriftPrompt(diffs: FlowDiff[], iter: number): string {
 
   sections.push(
     "",
-    "Fix the behavioral drift in the modern app without breaking other flows.",
+    "Fix the behavioral drift in the modern app without breaking other flows. Only inspect and edit files inside the current working directory, keep changes minimal, and finish immediately after applying the fix.",
   );
   return sections.join("\n");
 }
