@@ -77,12 +77,17 @@ Open `.theseus/report.html` after any run to inspect the signed equivalence cert
 
 ---
 
-## Benchmark Suites
+## Benchmark Suites & Live Scorecard
 
-| Suite | Legacy Oracle | Modern Rewrite | Planted Real-World Drifts |
-|---|---|---|---|
-| `shop` ([examples/](examples/)) | LegacyMart 2012 (vanilla HTML/JS) | ModernMart (editorial storefront + `pricing.mjs`) | 1. Tax applied before `SAVE10` discount (`$98.25` vs `$97.43`)<br/>2. Second promo silently overwrites active code instead of blocking stacking<br/>3. `$10.00` minimum order guard dropped on checkout |
-| `todomvc` ([benchmarks/todomvc/](benchmarks/todomvc/)) | Spec-compliant ES5 TodoMVC | Modern ESM TodoMVC (`store.mjs`) | 1. Singular footer grammar broken (`"1 items left"` vs `"1 item left"`)<br/>2. Whitespace-only todos accepted into list<br/>3. `Clear completed` wipes active todos alongside completed ones |
+| Suite | Platform & Agent | Iterations | Patched File | Full Regression | Verdict & SHA-256 Digest | Committed Evidence |
+|---|---|---|---|---|---|---|
+| `shop` ([examples/](examples/)) | macOS + OpenCode (`--agent-cmd`) | `1` | `examples/modern-shop/pricing.mjs` | `3/3 PASS` | **`EQUIVALENT`** (`exit 0`)<br/>`c8d30617b8a61f67...1ebe0f6` | [report.html](benchmarks/demo-shop/evidence/report.html) · [report.json](benchmarks/demo-shop/evidence/report.json) |
+| `todomvc` ([benchmarks/todomvc/](benchmarks/todomvc/)) | Windows + Claude Code (`claude -p`) | `1` | `benchmarks/todomvc/modern/store.mjs` | `3/3 PASS` | **`EQUIVALENT`** (`exit 0`)<br/>`68e03a084595336d...2d9cfc6` | [report.html](benchmarks/todomvc/evidence/report.html) · [report.json](benchmarks/todomvc/evidence/report.json) |
+
+### Planted Real-World Drifts Covered
+
+- **`shop` (LegacyMart 2012 vs. ModernMart):** (1) Tax applied before `SAVE10` discount (`$98.25` vs `$97.43`), (2) second promo silently overwrites active code instead of blocking stacking (`"Promo codes cannot be combined"`), (3) `$10.00` minimum order guard dropped on checkout (`"Minimum order is $10.00"`).
+- **`todomvc` (Spec-compliant ES5 vs. Modern ESM):** (1) Singular footer grammar broken (`"1 items left"` vs `"1 item left"`), (2) whitespace-only todos accepted into list (`todo_count: 2` vs `1`), (3) `Clear completed` wipes active todos alongside completed ones (`"0 items left"` vs `"1 item left"`).
 
 ---
 
